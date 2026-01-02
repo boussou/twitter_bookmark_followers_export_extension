@@ -1,11 +1,14 @@
+// Export Button Handler - validates user is on Twitter/X bookmarks page and injects the export script
 document.getElementById('exportButton').addEventListener('click', async() => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
+    // Validate the user is on Twitter/X
     if (!tab.url.includes('twitter.com') && !tab.url.includes('x.com')) {
         document.getElementById('status').textContent = 'Please navigate to Twitter/X first';
         return;
     }
 
+    // Validate the user is on the bookmarks page
     if (!tab.url.includes('/i/bookmarks')) {
         document.getElementById('status').textContent = 'Please go to your bookmarks page first';
         return;
@@ -15,12 +18,13 @@ document.getElementById('exportButton').addEventListener('click', async() => {
     const status = document.getElementById('status');
     const progress = document.getElementById('progress');
 
+    // Disable button and show progress UI
     button.disabled = true;
     status.textContent = 'Starting export...';
     progress.style.display = 'block';
     progress.value = 0;
 
-    // Inject the content script
+    // Inject the content script into the active tab using Chrome's scripting API
     try {
         await chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -32,22 +36,25 @@ document.getElementById('exportButton').addEventListener('click', async() => {
     }
 });
 
-// Listen for messages from the content script
+// Message Listener - receives messages from the injected content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const status = document.getElementById('status');
     const progress = document.getElementById('progress');
     const button = document.getElementById('exportButton');
 
+    // Handle progress updates from the content script
     if (message.type === 'progressUpdate') {
         status.textContent = message.message;
         if (message.progress) {
             progress.value = message.progress;
         }
     } else if (message.type === 'complete') {
+        // Handle completion - create JSON blob and trigger download
         if (message.bookmarks && message.bookmarks.length > 0) {
             const blob = new Blob([JSON.stringify(message.bookmarks, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
 
+            // Trigger download via Chrome's downloads API
             chrome.downloads.download({
                 url: url,
                 filename: 'twitter_bookmarks.json',
@@ -66,29 +73,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // background.js
 // Empty file but needed for manifest
 
-// Function to be injected
+// Function to be injected into the Twitter/X bookmarks page
 function startBookmarkExport() {
+    // Main collection logic - scrolls through bookmarks page and collects all visible bookmarks
     async function collectAllBookmarks() {
         const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-        let bookmarks = {};
+        let bookmarks = {}; // Uses tweet IDs as keys for deduplication
         let previousHeight = 0;
         let noNewBookmarksCount = 0;
         let scrollAttempts = 0;
         let lastBookmarkCount = 0;
 
-        // Scroll to top first
+        // Scroll to top first and wait for content to load
         window.scrollTo(0, 0);
         await delay(2000);
 
+        // Loop up to 500 times to scroll and collect bookmarks
         while (scrollAttempts < 500) {
             scrollAttempts++;
 
+            // Collect visible bookmarks on the current screen
             const currentBookmarks = collectVisibleBookmarks();
             const prevCount = Object.keys(bookmarks).length;
 
+            // Merge new bookmarks (deduplication happens automatically via object keys)
             Object.assign(bookmarks, currentBookmarks);
             const newCount = Object.keys(bookmarks).length;
 
+            // Send progress update if new bookmarks were found
             if (newCount > lastBookmarkCount) {
                 lastBookmarkCount = newCount;
                 chrome.runtime.sendMessage({
@@ -98,12 +110,14 @@ function startBookmarkExport() {
                 });
             }
 
+            // Scroll down 2000px and wait for content to load
             window.scrollBy(0, 2000);
             await delay(1500);
 
             const currentHeight = document.documentElement.scrollHeight;
             const scrollPosition = window.scrollY + window.innerHeight;
 
+            // Exit condition 1: No new bookmarks found for 10+ consecutive scrolls AND reached bottom
             if (newCount === prevCount) {
                 noNewBookmarksCount++;
                 if (noNewBookmarksCount > 10 && (scrollPosition >= currentHeight - 100)) {
@@ -113,6 +127,8 @@ function startBookmarkExport() {
                 noNewBookmarksCount = 0;
             }
 
+            // Exit condition 2: Page height unchanged AND at bottom
+            // Do a final scroll-to-top-then-bottom to ensure all content is loaded
             if (currentHeight === previousHeight) {
                 if (scrollPosition >= currentHeight - 100) {
                     window.scrollTo(0, 0);
@@ -128,8 +144,10 @@ function startBookmarkExport() {
             previousHeight = currentHeight;
         }
 
+        // Convert bookmarks object to array
         const bookmarksArray = Object.values(bookmarks);
 
+        // Send progress update
         chrome.runtime.sendMessage({
             type: 'progressUpdate',
             message: `Collection complete. Processing ${bookmarksArray.length} bookmarks...`,
@@ -138,14 +156,17 @@ function startBookmarkExport() {
 
         await delay(1000);
 
+        // Send final completion message with all bookmarks
         chrome.runtime.sendMessage({
             type: 'complete',
             bookmarks: bookmarksArray
         });
     }
 
+    // Extracts bookmark data from currently visible DOM elements
     function collectVisibleBookmarks() {
         const bookmarks = {};
+        // Find all tweet articles on the page
         const bookmarkItems = document.querySelectorAll('article[data-testid="tweet"]');
 
         bookmarkItems.forEach(item => {
@@ -155,17 +176,20 @@ function startBookmarkExport() {
             let tweetLink = '';
             let tweetId = '';
 
+            // Extract tweet text
             const tweetTextElement = item.querySelector('[data-testid="tweetText"]');
             if (tweetTextElement && tweetTextElement.textContent) {
                 tweetText = tweetTextElement.textContent.trim();
             }
 
+            // Extract timestamp, link, and ID from the time element
             const timeElement = item.querySelector('time');
             if (timeElement) {
                 timestamp = timeElement.getAttribute('datetime') || '';
                 const linkElement = timeElement.closest('a');
                 if (linkElement) {
                     tweetLink = linkElement.href;
+                    // Extract tweet ID from URL pattern /status/(\d+)
                     const matches = tweetLink.match(/status\/(\d+)/);
                     if (matches) {
                         tweetId = matches[1];
@@ -173,11 +197,14 @@ function startBookmarkExport() {
                 }
             }
 
+            // Extract author information
             const authorElement = item.querySelector('[data-testid="User-Name"]');
             if (authorElement && authorElement.textContent) {
                 author = authorElement.textContent.trim();
             }
 
+            // Only add bookmark if we have a valid tweet ID and either text or author
+            // Use tweet ID as key for automatic deduplication
             if (tweetId && (tweetText || author)) {
                 bookmarks[tweetId] = {
                     text: tweetText,
