@@ -87,7 +87,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Function to be injected into the Twitter/X bookmarks page
 function startBookmarkExport() {
     // Maximum number of scroll attempts before stopping
-    const MAX_SCROLL_ATTEMPTS = 500;
+    const MAX_SCROLL_ATTEMPTS = 5000;
 
     // Main collection logic - scrolls through bookmarks page and collects all visible bookmarks
     async function collectAllBookmarks() {
@@ -124,8 +124,8 @@ function startBookmarkExport() {
                 });
             }
 
-            // Scroll down 2160px and wait for content to load
-            window.scrollBy(0, 2160);
+            // Scroll down by viewport height and wait for content to load
+            window.scrollBy(0, window.innerHeight);
             await delay(3000);
 
             const currentHeight = document.documentElement.scrollHeight;

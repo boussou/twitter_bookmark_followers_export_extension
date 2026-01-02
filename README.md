@@ -1,8 +1,16 @@
 # bookmark_export_extension
 
 This is a Chrome extension popup script for exporting Twitter/X bookmarks. 
-Original code: 
+And followers/following.
 
+This is the export that is missing from the Official Twitter/X data export.
+When you go Settings and privacy → Your account → Download an archive of your data, 
+you will get an archive of your twitter data, except these.
+
+
+
+Code borrowed from an existing extension - I fixed it & extended it to /followers/following.
+Original code:
 Twitter Bookmark Exporter - Chrome Web Store => 
 https://chromewebstore.google.com/detail/twitter-bookmark-exporter/aggiedibmjnhcjlngcffegdhfdmfjodc
 

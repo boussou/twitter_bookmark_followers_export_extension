@@ -125,8 +125,8 @@ function startFollowersExport(exportType) {
                 });
             }
 
-            // Scroll down 2160px and wait for content to load
-            window.scrollBy(0, 2160);
+            // Scroll down by viewport height and wait for content to load
+            window.scrollBy(0, window.innerHeight);
             await delay(1000);
 
             const currentHeight = document.documentElement.scrollHeight;
