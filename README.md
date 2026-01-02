@@ -1,6 +1,11 @@
 # bookmark_export_extension
 
 This is a Chrome extension popup script for exporting Twitter/X bookmarks. 
+Original code: 
+
+Twitter Bookmark Exporter - Chrome Web Store => 
+https://chromewebstore.google.com/detail/twitter-bookmark-exporter/aggiedibmjnhcjlngcffegdhfdmfjodc
+
 
 # code in popup.js
 
