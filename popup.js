@@ -75,6 +75,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Function to be injected into the Twitter/X bookmarks page
 function startBookmarkExport() {
+    // Maximum number of scroll attempts before stopping
+    const MAX_SCROLL_ATTEMPTS = 500;
+
     // Main collection logic - scrolls through bookmarks page and collects all visible bookmarks
     async function collectAllBookmarks() {
         const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -88,8 +91,8 @@ function startBookmarkExport() {
         window.scrollTo(0, 0);
         await delay(2000);
 
-        // Loop up to 500 times to scroll and collect bookmarks
-        while (scrollAttempts < 500) {
+        // Loop up to MAX_SCROLL_ATTEMPTS times to scroll and collect bookmarks
+        while (scrollAttempts < MAX_SCROLL_ATTEMPTS) {
             scrollAttempts++;
 
             // Collect visible bookmarks on the current screen
@@ -106,13 +109,13 @@ function startBookmarkExport() {
                 chrome.runtime.sendMessage({
                     type: 'progressUpdate',
                     message: `Found ${newCount} bookmarks so far...`,
-                    progress: Math.min((scrollAttempts / 200) * 100, 100)
+                    progress: Math.min((scrollAttempts / MAX_SCROLL_ATTEMPTS) * 100, 100)
                 });
             }
 
-            // Scroll down 2000px and wait for content to load
-            window.scrollBy(0, 2000);
-            await delay(1500);
+            // Scroll down 2160px and wait for content to load
+            window.scrollBy(0, 2160);
+            await delay(3000);
 
             const currentHeight = document.documentElement.scrollHeight;
             const scrollPosition = window.scrollY + window.innerHeight;
