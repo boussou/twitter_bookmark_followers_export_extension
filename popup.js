@@ -1,3 +1,6 @@
+// Store collected bookmarks globally so save button can access them
+let collectedBookmarks = [];
+
 // Export Button Handler - validates user is on Twitter/X bookmarks page and injects the export script
 document.getElementById('exportButton').addEventListener('click', async() => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -16,12 +19,15 @@ document.getElementById('exportButton').addEventListener('click', async() => {
 
     const button = document.getElementById('exportButton');
     const followersButton = document.getElementById('exportFollowersButton');
+    const saveButton = document.getElementById('saveButton');
     const status = document.getElementById('status');
     const progress = document.getElementById('progress');
 
     // Disable both buttons and show progress UI
     button.disabled = true;
     followersButton.disabled = true;
+    saveButton.style.display = 'none';
+    collectedBookmarks = [];
     status.textContent = 'Starting export...';
     progress.style.display = 'block';
     progress.value = 0;
@@ -39,6 +45,32 @@ document.getElementById('exportButton').addEventListener('click', async() => {
     }
 });
 
+// Save Button Handler - triggers download of collected bookmarks
+document.getElementById('saveButton').addEventListener('click', () => {
+    const saveButton = document.getElementById('saveButton');
+    const status = document.getElementById('status');
+    const button = document.getElementById('exportButton');
+    const followersButton = document.getElementById('exportFollowersButton');
+    
+    if (collectedBookmarks.length > 0) {
+        const blob = new Blob([JSON.stringify(collectedBookmarks, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        chrome.downloads.download({
+            url: url,
+            filename: 'twitter_bookmarks.json',
+            saveAs: true
+        }, () => {
+            status.textContent = `Download complete! Saved ${collectedBookmarks.length} bookmarks.`;
+            button.disabled = false;
+            followersButton.disabled = false;
+            saveButton.style.display = 'none';
+        });
+    } else {
+        status.textContent = 'No bookmarks collected yet.';
+    }
+});
+
 // Message Listener - receives messages from the injected content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Only handle bookmark-related messages in this listener
@@ -50,6 +82,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const progress = document.getElementById('progress');
     const button = document.getElementById('exportButton');
     const followersButton = document.getElementById('exportFollowersButton');
+    const saveButton = document.getElementById('saveButton');
 
     // Handle progress updates from the content script
     if (message.type === 'progressUpdate') {
@@ -57,26 +90,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message.progress) {
             progress.value = message.progress;
         }
+        // Store bookmarks and show save button when we have data
+        if (message.bookmarks) {
+            collectedBookmarks = message.bookmarks;
+            if (collectedBookmarks.length > 0) {
+                saveButton.style.display = 'block';
+            }
+        }
     } else if (message.type === 'complete') {
-        // Handle completion - create JSON blob and trigger download
-        if (message.bookmarks && message.bookmarks.length > 0) {
-            const blob = new Blob([JSON.stringify(message.bookmarks, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-
-            // Trigger download via Chrome's downloads API
-            chrome.downloads.download({
-                url: url,
-                filename: 'twitter_bookmarks.json',
-                saveAs: true
-            }, () => {
-                status.textContent = `Download complete! Saved ${message.bookmarks.length} bookmarks.`;
-                button.disabled = false;
-                followersButton.disabled = false;
-            });
+        // Store the final bookmarks
+        if (message.bookmarks) {
+            collectedBookmarks = message.bookmarks;
+        }
+        // Handle completion - show save button and update status
+        if (collectedBookmarks.length > 0) {
+            status.textContent = `Export complete! Found ${collectedBookmarks.length} bookmarks. Click 'Save Bookmarks Now' to download.`;
+            saveButton.style.display = 'block';
         } else {
             status.textContent = 'No bookmarks found. Try refreshing the page.';
             button.disabled = false;
             followersButton.disabled = false;
+            saveButton.style.display = 'none';
         }
     }
 });
@@ -120,7 +154,8 @@ function startBookmarkExport() {
                 chrome.runtime.sendMessage({
                     type: 'progressUpdate',
                     message: `Found ${newCount} bookmarks so far...`,
-                    progress: Math.min((scrollAttempts / MAX_SCROLL_ATTEMPTS) * 100, 100)
+                    progress: Math.min((scrollAttempts / MAX_SCROLL_ATTEMPTS) * 100, 100),
+                    bookmarks: Object.values(bookmarks)
                 });
             }
 
