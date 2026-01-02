@@ -15,11 +15,13 @@ document.getElementById('exportButton').addEventListener('click', async() => {
     }
 
     const button = document.getElementById('exportButton');
+    const followersButton = document.getElementById('exportFollowersButton');
     const status = document.getElementById('status');
     const progress = document.getElementById('progress');
 
-    // Disable button and show progress UI
+    // Disable both buttons and show progress UI
     button.disabled = true;
+    followersButton.disabled = true;
     status.textContent = 'Starting export...';
     progress.style.display = 'block';
     progress.value = 0;
@@ -33,14 +35,21 @@ document.getElementById('exportButton').addEventListener('click', async() => {
     } catch (err) {
         status.textContent = 'Error: ' + err.message;
         button.disabled = false;
+        followersButton.disabled = false;
     }
 });
 
 // Message Listener - receives messages from the injected content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Only handle bookmark-related messages in this listener
+    if (message.type !== 'progressUpdate' && message.type !== 'complete') {
+        return; // Let followersExport.js handle other message types
+    }
+
     const status = document.getElementById('status');
     const progress = document.getElementById('progress');
     const button = document.getElementById('exportButton');
+    const followersButton = document.getElementById('exportFollowersButton');
 
     // Handle progress updates from the content script
     if (message.type === 'progressUpdate') {
@@ -62,10 +71,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }, () => {
                 status.textContent = `Download complete! Saved ${message.bookmarks.length} bookmarks.`;
                 button.disabled = false;
+                followersButton.disabled = false;
             });
         } else {
             status.textContent = 'No bookmarks found. Try refreshing the page.';
             button.disabled = false;
+            followersButton.disabled = false;
         }
     }
 });

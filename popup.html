@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>Twitter Bookmark Exporter</title>
+    <title>Twitter Bookmark/Follower/Following Exporter</title>
     <style>
         body {
             width: 350px;
@@ -29,6 +29,7 @@
             font-size: 14px;
             font-weight: 600;
             transition: background 0.2s ease;
+            margin-bottom: 10px;
         }
         
         button:hover {
@@ -38,6 +39,10 @@
         button:disabled {
             background: #ccc;
             cursor: not-allowed;
+        }
+        
+        .button-group {
+            margin-bottom: 15px;
         }
         
         #status {
@@ -68,11 +73,15 @@
 </head>
 
 <body>
-    <h1>Twitter Bookmark Exporter</h1>
-    <button id="exportButton">Export Bookmarks</button>
+    <h1>Twitter - the missing Exporter</h1>
+    <div class="button-group">
+        <button id="exportButton">Export Bookmarks</button>
+        <button id="exportFollowersButton">Export Followers/Following</button>
+    </div>
     <div id="status"></div>
     <progress id="progress" value="0" max="100"></progress>
     <script src="popup.js"></script>
+    <script src="followersExport.js"></script>
 </body>
 
 </html>
