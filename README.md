@@ -1,4 +1,4 @@
-# bookmark_export_extension
+# twitter_bookmark_followers_export_extension
 
 This is a Chrome extension popup script for exporting Twitter/X bookmarks. 
 And followers/following.
