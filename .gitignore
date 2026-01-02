@@ -1,0 +1,9 @@
+*.db3
+*.svg
+.~*
+output/
+temp_*
+.idea
+\_specs.txt
+_prompt.txt
+

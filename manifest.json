@@ -1,0 +1,29 @@
+{
+   "action": {
+      "default_icon": {
+         "128": "icons/icon128.png",
+         "16": "icons/icon16.png",
+         "32": "icons/icon32.png",
+         "48": "icons/icon48.png"
+      },
+      "default_popup": "popup.html",
+      "default_title": "Export Bookmarks"
+   },
+   "background": {
+      "service_worker": "background.js"
+   },
+   "description": "Easily export all your Twitter/X bookmarks to a JSON file with one click",
+   "host_permissions": [ "https://twitter.com/*", "https://x.com/*" ],
+   "icons": {
+      "128": "icons/icon128.png",
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtUDyX4gv8wNohLGAQoEm9R2AZOHPt+FD0I09GPJZ1z3r3yIcOJhW3wlHk8myGRx/fuKaiMFz1wXMv5TMFVHugxpEYF7IR71tJ7O/EGVHFp1Adl+HQxSSMrLvhlI7eJxoxynSpoe71bJ9nstE2RuuyQevQU+nt7abKXoVFQPo+MCWYzEzEOpwbVY0mz5KaRHEUK2EKoiYDq/bY1IA1Cim50Ii2Q/gYDEwquJ/1xru7LasWxbB8FfEjHyRRxGEhhc7OARd5hIestfjQaKlkHAPe0KlkFwzbS7bS5ZtgSKqtbmjI/hQxMHmfEUX2YicYHcUuqKAGh+jJwyW6IITNyDijwIDAQAB",
+   "manifest_version": 3,
+   "name": "Twitter Bookmark Exporter",
+   "permissions": [ "activeTab", "downloads", "scripting" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "1.0"
+}
