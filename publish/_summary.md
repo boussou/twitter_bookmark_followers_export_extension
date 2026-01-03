@@ -25,6 +25,7 @@ You **must** host the privacy policy online. Quick options:
 - **GitHub Pages** (free): Create a `gh-pages` branch or use your repo's README
 - **Google Sites** (free): Create a simple site
 - Your personal website
+- **FINAL URL**: https://boussou.github.io/twitter_bookmark_followers_export_extension
 
 ### 3. Take Screenshots
 You need **at least 1 screenshot** (max 5):
@@ -45,4 +46,7 @@ You need **at least 1 screenshot** (max 5):
 - **Add GitHub URL**: Update the repository URL in the privacy policy and store listing
 - **Screenshots are required**: Chrome Web Store won't accept submissions without them
 - **Privacy policy must be live**: Host it before submitting
+
+  Live URL: 
+  https://boussou.github.io/twitter_bookmark_followers_export_extension
 
