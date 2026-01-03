@@ -94,11 +94,9 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         if (message.count > 0) {
             try {
                 const result = await chrome.storage.local.get(['bookmarksData']);
-                if (result.bookmarksData) {
+                if (result.bookmarksData && result.bookmarksData.length > 0) {
                     collectedBookmarks = result.bookmarksData;
-                    if (collectedBookmarks.length > 0) {
-                        saveButton.style.display = 'block';
-                    }
+                    saveButton.style.display = 'block';
                 }
             } catch (err) {
                 console.error('Error retrieving bookmarks from storage:', err);
