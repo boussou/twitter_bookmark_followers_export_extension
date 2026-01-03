@@ -72,7 +72,7 @@ document.getElementById('saveButton').addEventListener('click', () => {
 });
 
 // Message Listener - receives messages from the injected content script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     // Only handle bookmark-related messages in this listener
     if (message.type !== 'progressUpdate' && message.type !== 'complete') {
         return; // Let followersExport.js handle other message types
@@ -90,27 +90,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message.progress) {
             progress.value = message.progress;
         }
-        // Store bookmarks and show save button when we have data
-        if (message.bookmarks) {
-            collectedBookmarks = message.bookmarks;
-            if (collectedBookmarks.length > 0) {
-                saveButton.style.display = 'block';
+        // For large datasets, retrieve from storage instead of message
+        if (message.count > 0) {
+            try {
+                const result = await chrome.storage.local.get(['bookmarksData']);
+                if (result.bookmarksData) {
+                    collectedBookmarks = result.bookmarksData;
+                    if (collectedBookmarks.length > 0) {
+                        saveButton.style.display = 'block';
+                    }
+                }
+            } catch (err) {
+                console.error('Error retrieving bookmarks from storage:', err);
             }
         }
     } else if (message.type === 'complete') {
-        // Store the final bookmarks
-        if (message.bookmarks) {
-            collectedBookmarks = message.bookmarks;
-        }
-        // Handle completion - show save button and update status
-        if (collectedBookmarks.length > 0) {
-            status.textContent = `Export complete! Found ${collectedBookmarks.length} bookmarks. Click 'Save Bookmarks Now' to download.`;
-            saveButton.style.display = 'block';
-        } else {
-            status.textContent = 'No bookmarks found. Try refreshing the page.';
+        // Retrieve the final bookmarks from storage
+        try {
+            const result = await chrome.storage.local.get(['bookmarksData']);
+            if (result.bookmarksData) {
+                collectedBookmarks = result.bookmarksData;
+            }
+            // Handle completion - show save button and update status
+            if (collectedBookmarks.length > 0) {
+                status.textContent = `Export complete! Found ${collectedBookmarks.length} bookmarks. Click 'Save Bookmarks Now' to download.`;
+                saveButton.style.display = 'block';
+            } else {
+                status.textContent = 'No bookmarks found. Try refreshing the page.';
+                button.disabled = false;
+                followersButton.disabled = false;
+                saveButton.style.display = 'none';
+            }
+        } catch (err) {
+            status.textContent = 'Error retrieving bookmarks: ' + err.message;
             button.disabled = false;
             followersButton.disabled = false;
-            saveButton.style.display = 'none';
         }
     }
 });
@@ -151,12 +165,24 @@ function startBookmarkExport() {
             // Send progress update if new bookmarks were found
             if (newCount > lastBookmarkCount) {
                 lastBookmarkCount = newCount;
-                chrome.runtime.sendMessage({
-                    type: 'progressUpdate',
-                    message: `Found ${newCount} bookmarks so far...`,
-                    progress: Math.min((scrollAttempts / MAX_SCROLL_ATTEMPTS) * 100, 100),
-                    bookmarks: Object.values(bookmarks)
-                });
+                // Store in chrome.storage for large datasets
+                try {
+                    await chrome.storage.local.set({ bookmarksData: Object.values(bookmarks) });
+                    chrome.runtime.sendMessage({
+                        type: 'progressUpdate',
+                        message: `Found ${newCount} bookmarks so far...`,
+                        progress: Math.min((scrollAttempts / MAX_SCROLL_ATTEMPTS) * 100, 100),
+                        count: newCount
+                    });
+                } catch (err) {
+                    // Fallback: just send count without data
+                    chrome.runtime.sendMessage({
+                        type: 'progressUpdate',
+                        message: `Found ${newCount} bookmarks so far...`,
+                        progress: Math.min((scrollAttempts / MAX_SCROLL_ATTEMPTS) * 100, 100),
+                        count: newCount
+                    });
+                }
             }
 
             // Scroll down by viewport height and wait for content to load
@@ -196,20 +222,32 @@ function startBookmarkExport() {
         // Convert bookmarks object to array
         const bookmarksArray = Object.values(bookmarks);
 
-        // Send progress update
-        chrome.runtime.sendMessage({
-            type: 'progressUpdate',
-            message: `Collection complete. Processing ${bookmarksArray.length} bookmarks...`,
-            progress: 100
-        });
+        // Store bookmarks in chrome.storage.local to avoid message size limits
+        try {
+            await chrome.storage.local.set({ bookmarksData: bookmarksArray });
+            
+            // Send progress update
+            chrome.runtime.sendMessage({
+                type: 'progressUpdate',
+                message: `Collection complete. Processing ${bookmarksArray.length} bookmarks...`,
+                progress: 100,
+                count: bookmarksArray.length
+            });
 
-        await delay(1000);
+            await delay(1000);
 
-        // Send final completion message with all bookmarks
-        chrome.runtime.sendMessage({
-            type: 'complete',
-            bookmarks: bookmarksArray
-        });
+            // Send final completion message (data is in storage)
+            chrome.runtime.sendMessage({
+                type: 'complete',
+                count: bookmarksArray.length
+            });
+        } catch (err) {
+            chrome.runtime.sendMessage({
+                type: 'progressUpdate',
+                message: `Error saving bookmarks: ${err.message}`,
+                progress: 100
+            });
+        }
     }
 
     // Extracts bookmark data from currently visible DOM elements

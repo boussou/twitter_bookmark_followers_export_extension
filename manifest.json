@@ -22,6 +22,6 @@
    },
    "manifest_version": 3,
    "name": "Twitter Bookmark & Followers Exporter",
-   "permissions": [ "activeTab", "downloads", "scripting" ],
+   "permissions": [ "activeTab", "downloads", "scripting", "storage" ],
    "version": "1.0"
 }
