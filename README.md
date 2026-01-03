@@ -1,67 +1,73 @@
-# twitter_bookmark_followers_export_extension
+# Privacy Policy for Twitter Bookmark & Followers Exporter
 
-This is a Chrome extension popup script for exporting Twitter/X bookmarks. 
-And followers/following.
+**Last Updated:** January 2, 2026
 
-This is the export that is missing from the Official Twitter/X data export.
-When you go Settings and privacy → Your account → Download an archive of your data, 
-you will get an archive of your twitter data, except these.
+## Overview
 
+Twitter Bookmark & Followers Exporter is a Chrome extension that helps users export their Twitter/X bookmarks and followers/following lists. This privacy policy explains how the extension handles your data.
 
+## Data Collection and Usage
 
-Code borrowed from an existing extension - I fixed it & extended it to /followers/following.
-Original code:
-Twitter Bookmark Exporter - Chrome Web Store => 
-https://chromewebstore.google.com/detail/twitter-bookmark-exporter/aggiedibmjnhcjlngcffegdhfdmfjodc
+**We do NOT collect, store, or transmit any personal data.**
 
+All data processing happens entirely within your browser:
+- Bookmark data is extracted from the Twitter/X pages you visit
+- Follower/following data is extracted from Twitter/X pages
+- All processing occurs locally in your browser
+- Exported data is saved directly to your computer
+- No data is sent to external servers or third parties
 
-# code in popup.js
+## Data Storage
 
-## Main Components
+- The extension does not store any data on external servers
+- No cookies or tracking mechanisms are used
+- Exported files are saved locally to your device only
 
-### **Export Button Handler** (`popup.js:1-33`)
-- Validates the user is on Twitter/X bookmarks page
-- Disables the button and shows progress UI
-- Injects [startBookmarkExport](popup.js:68:0-196:1) function into the active tab using Chrome's scripting API
+## Permissions Explanation
 
-### **Message Listener** (`popup.js:36-64`)
-Receives messages from the injected content script:
-- **`progressUpdate`**: Updates status text and progress bar
-- **`complete`**: Creates a JSON blob of bookmarks and triggers download via Chrome's downloads API
+The extension requires the following permissions:
 
-## Injected Function: startBookmarkExport
+### activeTab
+- **Purpose:** Access the content of the currently active Twitter/X tab
+- **Usage:** Read bookmark and follower data from the page
 
-### **collectAllBookmarks()** (`popup.js:71-145`)
-Main collection logic that:
-1. **Scrolls to top** and waits 2 seconds
-2. **Loops up to 500 times**, each iteration:
-   - Collects visible bookmarks via [collectVisibleBookmarks()](popup.js:146:4-192:5)
-   - Scrolls down 2000px
-   - Waits 1.5 seconds for content to load
-   - Tracks if new bookmarks were found
-3. **Exit conditions**:
-   - No new bookmarks found for 10+ consecutive scrolls AND reached bottom
-   - Page height unchanged AND at bottom (does a final scroll-to-top-then-bottom to ensure all loaded)
-   - 500 scroll attempts reached
-4. Sends progress updates and final completion message
+### downloads
+- **Purpose:** Save exported data to your computer
+- **Usage:** Trigger file downloads for JSON exports
 
-### **collectVisibleBookmarks()** (`popup.js:147-193`)
-Extracts bookmark data from DOM:
-- Finds all `article[data-testid="tweet"]` elements
-- For each tweet, extracts:
-  - **Text**: from `[data-testid="tweetText"]`
-  - **Timestamp**: from `<time>` element's `datetime` attribute
-  - **Author**: from `[data-testid="User-Name"]`
-  - **Link & ID**: from the time element's parent link (extracts ID from URL pattern `/status/(\d+)`)
-- Uses tweet ID as key to deduplicate bookmarks
-- Returns object with tweet IDs as keys
+### scripting
+- **Purpose:** Inject code into Twitter/X pages
+- **Usage:** Execute the export functionality on Twitter/X pages
 
-## Key Features
+### host_permissions (twitter.com, x.com)
+- **Purpose:** Access Twitter/X domains
+- **Usage:** Required to interact with Twitter/X pages and extract data
 
-- **Deduplication**: Uses object with tweet IDs as keys to avoid duplicates
-- **Infinite scroll handling**: Automatically scrolls and waits for content to load
-- **Progress tracking**: Updates UI with bookmark count and progress percentage
-- **Smart exit**: Multiple conditions to detect when all bookmarks are loaded
-- **Download**: Saves as `twitter_bookmarks.json` with pretty-printed JSON
+## Third-Party Services
 
+This extension does not use any third-party services, analytics, or tracking tools.
 
+## Data Security
+
+Since all data processing happens locally in your browser and no data is transmitted externally, your data remains secure on your device.
+
+## Changes to This Policy
+
+We may update this privacy policy from time to time. Any changes will be reflected in the "Last Updated" date above.
+
+## Contact
+
+If you have questions about this privacy policy, please contact:
+[YOUR EMAIL ADDRESS HERE]
+
+## Open Source
+
+This extension is open source. You can review the code at:
+[YOUR GITHUB REPOSITORY URL]
+
+## Compliance
+
+This extension complies with:
+- Chrome Web Store Developer Program Policies
+- General Data Protection Regulation (GDPR)
+- California Consumer Privacy Act (CCPA)
