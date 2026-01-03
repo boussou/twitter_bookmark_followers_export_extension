@@ -1,6 +1,25 @@
 // Store collected bookmarks globally so save button can access them
 let collectedBookmarks = [];
 
+// Initialize: Check if there's existing data in storage on popup load
+(async function initializePopup() {
+    try {
+        const result = await chrome.storage.local.get(['bookmarksData']);
+        if (result.bookmarksData && result.bookmarksData.length > 0) {
+            collectedBookmarks = result.bookmarksData;
+            const saveButton = document.getElementById('saveButton');
+            const clearButton = document.getElementById('clearButton');
+            const status = document.getElementById('status');
+            
+            saveButton.style.display = 'block';
+            clearButton.style.display = 'block';
+            status.textContent = `Found ${collectedBookmarks.length} bookmarks in storage. Ready to save.`;
+        }
+    } catch (err) {
+        console.error('Error checking storage on initialization:', err);
+    }
+})()
+
 // Export Button Handler - validates user is on Twitter/X bookmarks page and injects the export script
 document.getElementById('exportButton').addEventListener('click', async() => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -46,28 +65,75 @@ document.getElementById('exportButton').addEventListener('click', async() => {
 });
 
 // Save Button Handler - triggers download of collected bookmarks
-document.getElementById('saveButton').addEventListener('click', () => {
+document.getElementById('saveButton').addEventListener('click', async () => {
     const saveButton = document.getElementById('saveButton');
+    const clearButton = document.getElementById('clearButton');
     const status = document.getElementById('status');
     const button = document.getElementById('exportButton');
     const followersButton = document.getElementById('exportFollowersButton');
     
     if (collectedBookmarks.length > 0) {
-        const blob = new Blob([JSON.stringify(collectedBookmarks, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        chrome.downloads.download({
-            url: url,
-            filename: 'twitter_bookmarks.json',
-            saveAs: true
-        }, () => {
-            status.textContent = `Download complete! Saved ${collectedBookmarks.length} bookmarks.`;
-            button.disabled = false;
-            followersButton.disabled = false;
-            saveButton.style.display = 'none';
-        });
+        try {
+            status.textContent = `Preparing to save ${collectedBookmarks.length} bookmarks...`;
+            
+            // For large datasets, create JSON string in chunks to avoid memory issues
+            let jsonString;
+            try {
+                jsonString = JSON.stringify(collectedBookmarks, null, 2);
+            } catch (err) {
+                // If pretty print fails, try without formatting
+                status.textContent = 'Large dataset detected, using compact format...';
+                jsonString = JSON.stringify(collectedBookmarks);
+            }
+            
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            chrome.downloads.download({
+                url: url,
+                filename: 'twitter_bookmarks.json',
+                saveAs: true
+            }, (downloadId) => {
+                if (chrome.runtime.lastError) {
+                    status.textContent = `Error: ${chrome.runtime.lastError.message}`;
+                } else {
+                    status.textContent = `Download started! Saving ${collectedBookmarks.length} bookmarks.`;
+                    button.disabled = false;
+                    followersButton.disabled = false;
+                }
+                // Clean up the blob URL after a delay
+                setTimeout(() => URL.revokeObjectURL(url), 10000);
+            });
+        } catch (err) {
+            status.textContent = `Error preparing download: ${err.message}`;
+            console.error('Save error:', err);
+        }
     } else {
         status.textContent = 'No bookmarks collected yet.';
+    }
+});
+
+// Clear Button Handler - clears bookmarks data from storage
+document.getElementById('clearButton').addEventListener('click', async () => {
+    const saveButton = document.getElementById('saveButton');
+    const clearButton = document.getElementById('clearButton');
+    const status = document.getElementById('status');
+    const button = document.getElementById('exportButton');
+    const followersButton = document.getElementById('exportFollowersButton');
+    
+    if (confirm(`Are you sure you want to clear ${collectedBookmarks.length} bookmarks from storage?`)) {
+        try {
+            await chrome.storage.local.remove(['bookmarksData']);
+            collectedBookmarks = [];
+            saveButton.style.display = 'none';
+            clearButton.style.display = 'none';
+            status.textContent = 'Bookmarks data cleared successfully.';
+            button.disabled = false;
+            followersButton.disabled = false;
+        } catch (err) {
+            status.textContent = `Error clearing data: ${err.message}`;
+            console.error('Clear error:', err);
+        }
     }
 });
 
@@ -83,6 +149,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     const button = document.getElementById('exportButton');
     const followersButton = document.getElementById('exportFollowersButton');
     const saveButton = document.getElementById('saveButton');
+    const clearButton = document.getElementById('clearButton');
 
     // Handle progress updates from the content script
     if (message.type === 'progressUpdate') {
@@ -97,6 +164,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                 if (result.bookmarksData && result.bookmarksData.length > 0) {
                     collectedBookmarks = result.bookmarksData;
                     saveButton.style.display = 'block';
+                    clearButton.style.display = 'block';
                 }
             } catch (err) {
                 console.error('Error retrieving bookmarks from storage:', err);
@@ -113,11 +181,13 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             if (collectedBookmarks.length > 0) {
                 status.textContent = `Export complete! Found ${collectedBookmarks.length} bookmarks. Click 'Save Bookmarks Now' to download.`;
                 saveButton.style.display = 'block';
+                clearButton.style.display = 'block';
             } else {
                 status.textContent = 'No bookmarks found. Try refreshing the page.';
                 button.disabled = false;
                 followersButton.disabled = false;
                 saveButton.style.display = 'none';
+                clearButton.style.display = 'none';
             }
         } catch (err) {
             status.textContent = 'Error retrieving bookmarks: ' + err.message;
