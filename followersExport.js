@@ -116,12 +116,22 @@ function startFollowersExport(exportType) {
         let scrollAttempts = 0;
         let lastUserCount = 0;
 
+        // Clear any previous stop flag
+        await chrome.storage.local.remove('stopExport');
+
         // Scroll to top first and wait for content to load
         window.scrollTo(0, 0);
         await delay(2000);
 
         // Loop up to MAX_SCROLL_ATTEMPTS times to scroll and collect users
         while (scrollAttempts < MAX_SCROLL_ATTEMPTS) {
+            // Check if user requested to stop
+            const stopCheck = await chrome.storage.local.get(['stopExport']);
+            if (stopCheck.stopExport) {
+                await chrome.storage.local.remove('stopExport');
+                break;
+            }
+            
             scrollAttempts++;
 
             // Collect visible users on the current screen
