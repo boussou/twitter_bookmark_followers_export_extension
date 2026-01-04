@@ -17,15 +17,20 @@ document.getElementById('exportFollowersButton').addEventListener('click', async
     const button = document.getElementById('exportFollowersButton');
     const status = document.getElementById('status');
     const loader = document.getElementById('loaderContainer');
+    const stopButton = document.getElementById('stopButton');
 
     // Disable both buttons and show loader
     document.getElementById('exportButton').disabled = true;
     button.disabled = true;
+    stopButton.style.display = 'block';
     status.textContent = 'Starting export...';
     loader.style.display = 'flex';
 
     // Determine the export type from URL
     const exportType = tab.url.includes('/followers') ? 'followers' : 'following';
+    
+    // Set export in progress flag
+    await chrome.storage.local.set({ exportInProgress: { type: exportType, message: 'Starting export...' } });
 
     // Inject the content script into the active tab using Chrome's scripting API
     try {
@@ -38,11 +43,14 @@ document.getElementById('exportFollowersButton').addEventListener('click', async
         status.textContent = 'Error: ' + err.message;
         button.disabled = false;
         document.getElementById('exportButton').disabled = false;
+        stopButton.style.display = 'none';
+        loader.style.display = 'none';
+        await chrome.storage.local.remove('exportInProgress');
     }
 });
 
 // Message Listener - receives messages from the injected content script for followers/following export
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.type !== 'followersProgressUpdate' && message.type !== 'followersComplete') {
         return; // Ignore messages not related to followers export
     }
@@ -51,11 +59,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const loader = document.getElementById('loaderContainer');
     const exportButton = document.getElementById('exportButton');
     const followersButton = document.getElementById('exportFollowersButton');
+    const stopButton = document.getElementById('stopButton');
 
     // Handle progress updates from the content script
     if (message.type === 'followersProgressUpdate') {
         status.textContent = message.message;
         loader.style.display = 'flex';
+        stopButton.style.display = 'block';
+        // Update export in progress status
+        await chrome.storage.local.set({ exportInProgress: { type: 'followers', message: message.message } });
     } else if (message.type === 'followersComplete') {
         // Handle completion - create JSON blob and trigger download
         if (message.users && message.users.length > 0) {
@@ -69,17 +81,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 url: url,
                 filename: filename,
                 saveAs: true
-            }, () => {
+            }, async () => {
                 status.textContent = `Download complete! Saved ${message.users.length} ${message.exportType}.`;
                 loader.style.display = 'none';
+                stopButton.style.display = 'none';
                 followersButton.disabled = false;
                 exportButton.disabled = false;
+                // Clear export in progress flag
+                await chrome.storage.local.remove('exportInProgress');
             });
         } else {
             status.textContent = 'No users found. Try refreshing the page.';
             loader.style.display = 'none';
+            stopButton.style.display = 'none';
             followersButton.disabled = false;
             exportButton.disabled = false;
+            // Clear export in progress flag
+            await chrome.storage.local.remove('exportInProgress');
         }
     }
 });
@@ -120,7 +138,7 @@ function startFollowersExport(exportType) {
                 chrome.runtime.sendMessage({
                     type: 'followersProgressUpdate',
                     message: `Found ${newCount} users so far...`,
-                    progress: Math.min((scrollAttempts / MAX_SCROLL_ATTEMPTS) * 100, 100)
+                    progress: Math.min(5 + (scrollAttempts / MAX_SCROLL_ATTEMPTS) * 90, 95)
                 });
             }
 

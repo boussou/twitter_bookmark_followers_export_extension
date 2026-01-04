@@ -4,7 +4,24 @@ let collectedBookmarks = [];
 // Initialize: Check if there's existing data in storage on popup load
 (async function initializePopup() {
     try {
-        const result = await chrome.storage.local.get(['bookmarksData']);
+        const result = await chrome.storage.local.get(['bookmarksData', 'exportInProgress']);
+        
+        // Check if an export is currently in progress
+        if (result.exportInProgress) {
+            const exportButton = document.getElementById('exportButton');
+            const followersButton = document.getElementById('exportFollowersButton');
+            const stopButton = document.getElementById('stopButton');
+            const loader = document.getElementById('loaderContainer');
+            const status = document.getElementById('status');
+            
+            exportButton.disabled = true;
+            followersButton.disabled = true;
+            stopButton.style.display = 'block';
+            loader.style.display = 'flex';
+            status.textContent = result.exportInProgress.message || 'Export in progress...';
+        }
+        
+        // Check if there's existing bookmarks data
         if (result.bookmarksData && result.bookmarksData.length > 0) {
             collectedBookmarks = result.bookmarksData;
             const saveButton = document.getElementById('saveButton');
@@ -12,8 +29,15 @@ let collectedBookmarks = [];
             const status = document.getElementById('status');
             
             saveButton.style.display = 'block';
-            clearButton.style.display = 'block';
-            status.textContent = `Found ${collectedBookmarks.length} bookmarks in storage. Ready to save.`;
+            // Only show clear button if no export is in progress
+            if (!result.exportInProgress) {
+                clearButton.style.display = 'block';
+            }
+            
+            // Only update status if no export is in progress
+            if (!result.exportInProgress) {
+                status.textContent = `Found ${collectedBookmarks.length} bookmarks in storage. Ready to save.`;
+            }
         }
     } catch (err) {
         console.error('Error checking storage on initialization:', err);
@@ -39,6 +63,8 @@ document.getElementById('exportButton').addEventListener('click', async() => {
     const button = document.getElementById('exportButton');
     const followersButton = document.getElementById('exportFollowersButton');
     const saveButton = document.getElementById('saveButton');
+    const clearButton = document.getElementById('clearButton');
+    const stopButton = document.getElementById('stopButton');
     const status = document.getElementById('status');
     const loader = document.getElementById('loaderContainer');
 
@@ -46,9 +72,14 @@ document.getElementById('exportButton').addEventListener('click', async() => {
     button.disabled = true;
     followersButton.disabled = true;
     saveButton.style.display = 'none';
+    clearButton.style.display = 'none';
+    stopButton.style.display = 'block';
     collectedBookmarks = [];
     status.textContent = 'Starting export...';
     loader.style.display = 'flex';
+    
+    // Set export in progress flag
+    await chrome.storage.local.set({ exportInProgress: { type: 'bookmarks', message: 'Starting export...' } });
 
     // Inject the content script into the active tab using Chrome's scripting API
     try {
@@ -60,6 +91,9 @@ document.getElementById('exportButton').addEventListener('click', async() => {
         status.textContent = 'Error: ' + err.message;
         button.disabled = false;
         followersButton.disabled = false;
+        stopButton.style.display = 'none';
+        loader.style.display = 'none';
+        await chrome.storage.local.remove('exportInProgress');
     }
 });
 
@@ -112,6 +146,37 @@ document.getElementById('saveButton').addEventListener('click', async () => {
     }
 });
 
+// Stop Button Handler - stops the current export
+document.getElementById('stopButton').addEventListener('click', async () => {
+    const stopButton = document.getElementById('stopButton');
+    const exportButton = document.getElementById('exportButton');
+    const followersButton = document.getElementById('exportFollowersButton');
+    const saveButton = document.getElementById('saveButton');
+    const clearButton = document.getElementById('clearButton');
+    const loader = document.getElementById('loaderContainer');
+    const status = document.getElementById('status');
+    
+    // Clear the export in progress flag
+    await chrome.storage.local.remove('exportInProgress');
+    
+    // Re-enable buttons and hide loader
+    exportButton.disabled = false;
+    followersButton.disabled = false;
+    stopButton.style.display = 'none';
+    loader.style.display = 'none';
+    
+    // Check if there's data to show save/clear buttons
+    const result = await chrome.storage.local.get(['bookmarksData']);
+    if (result.bookmarksData && result.bookmarksData.length > 0) {
+        collectedBookmarks = result.bookmarksData;
+        saveButton.style.display = 'block';
+        clearButton.style.display = 'block';
+        status.textContent = `Export stopped. Found ${collectedBookmarks.length} bookmarks. Click 'Save Bookmarks Now' to download.`;
+    } else {
+        status.textContent = 'Export stopped.';
+    }
+});
+
 // Clear Button Handler - clears bookmarks data from storage
 document.getElementById('clearButton').addEventListener('click', async () => {
     const saveButton = document.getElementById('saveButton');
@@ -149,11 +214,15 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     const followersButton = document.getElementById('exportFollowersButton');
     const saveButton = document.getElementById('saveButton');
     const clearButton = document.getElementById('clearButton');
+    const stopButton = document.getElementById('stopButton');
 
     // Handle progress updates from the content script
     if (message.type === 'progressUpdate') {
         status.textContent = message.message;
         loader.style.display = 'flex';
+        stopButton.style.display = 'block';
+        // Update export in progress status
+        await chrome.storage.local.set({ exportInProgress: { type: 'bookmarks', message: message.message } });
         // For large datasets, retrieve from storage instead of message
         if (message.count > 0) {
             try {
@@ -161,7 +230,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                 if (result.bookmarksData && result.bookmarksData.length > 0) {
                     collectedBookmarks = result.bookmarksData;
                     saveButton.style.display = 'block';
-                    clearButton.style.display = 'block';
+                    // Don't show clear button during export
                 }
             } catch (err) {
                 console.error('Error retrieving bookmarks from storage:', err);
@@ -178,21 +247,30 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             if (collectedBookmarks.length > 0) {
                 status.textContent = `Export complete! Found ${collectedBookmarks.length} bookmarks. Click 'Save Bookmarks Now' to download.`;
                 loader.style.display = 'none';
+                stopButton.style.display = 'none';
                 saveButton.style.display = 'block';
                 clearButton.style.display = 'block';
+                // Clear export in progress flag
+                await chrome.storage.local.remove('exportInProgress');
             } else {
                 status.textContent = 'No bookmarks found. Try refreshing the page.';
                 loader.style.display = 'none';
+                stopButton.style.display = 'none';
                 button.disabled = false;
                 followersButton.disabled = false;
                 saveButton.style.display = 'none';
                 clearButton.style.display = 'none';
+                // Clear export in progress flag
+                await chrome.storage.local.remove('exportInProgress');
             }
         } catch (err) {
             status.textContent = 'Error retrieving bookmarks: ' + err.message;
             loader.style.display = 'none';
+            stopButton.style.display = 'none';
             button.disabled = false;
             followersButton.disabled = false;
+            // Clear export in progress flag
+            await chrome.storage.local.remove('exportInProgress');
         }
     }
 });
@@ -239,7 +317,7 @@ function startBookmarkExport() {
                     chrome.runtime.sendMessage({
                         type: 'progressUpdate',
                         message: `Found ${newCount} bookmarks so far...`,
-                        progress: Math.min((scrollAttempts / MAX_SCROLL_ATTEMPTS) * 100, 100),
+                        progress: Math.min(50+(scrollAttempts / MAX_SCROLL_ATTEMPTS) * 100, 100),
                         count: newCount
                     });
                 } catch (err) {
@@ -247,7 +325,7 @@ function startBookmarkExport() {
                     chrome.runtime.sendMessage({
                         type: 'progressUpdate',
                         message: `Found ${newCount} bookmarks so far...`,
-                        progress: Math.min((scrollAttempts / MAX_SCROLL_ATTEMPTS) * 100, 100),
+                        progress: Math.min(50+(scrollAttempts / MAX_SCROLL_ATTEMPTS) * 100, 100),
                         count: newCount
                     });
                 }
