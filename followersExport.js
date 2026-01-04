@@ -16,14 +16,13 @@ document.getElementById('exportFollowersButton').addEventListener('click', async
 
     const button = document.getElementById('exportFollowersButton');
     const status = document.getElementById('status');
-    const progress = document.getElementById('progress');
+    const loader = document.getElementById('loaderContainer');
 
-    // Disable both buttons and show progress UI
+    // Disable both buttons and show loader
     document.getElementById('exportButton').disabled = true;
     button.disabled = true;
     status.textContent = 'Starting export...';
-    progress.style.display = 'block';
-    progress.value = 0;
+    loader.style.display = 'flex';
 
     // Determine the export type from URL
     const exportType = tab.url.includes('/followers') ? 'followers' : 'following';
@@ -49,16 +48,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     const status = document.getElementById('status');
-    const progress = document.getElementById('progress');
+    const loader = document.getElementById('loaderContainer');
     const exportButton = document.getElementById('exportButton');
     const followersButton = document.getElementById('exportFollowersButton');
 
     // Handle progress updates from the content script
     if (message.type === 'followersProgressUpdate') {
         status.textContent = message.message;
-        if (message.progress) {
-            progress.value = message.progress;
-        }
+        loader.style.display = 'flex';
     } else if (message.type === 'followersComplete') {
         // Handle completion - create JSON blob and trigger download
         if (message.users && message.users.length > 0) {
@@ -74,11 +71,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 saveAs: true
             }, () => {
                 status.textContent = `Download complete! Saved ${message.users.length} ${message.exportType}.`;
+                loader.style.display = 'none';
                 followersButton.disabled = false;
                 exportButton.disabled = false;
             });
         } else {
             status.textContent = 'No users found. Try refreshing the page.';
+            loader.style.display = 'none';
             followersButton.disabled = false;
             exportButton.disabled = false;
         }

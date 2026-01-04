@@ -40,16 +40,15 @@ document.getElementById('exportButton').addEventListener('click', async() => {
     const followersButton = document.getElementById('exportFollowersButton');
     const saveButton = document.getElementById('saveButton');
     const status = document.getElementById('status');
-    const progress = document.getElementById('progress');
+    const loader = document.getElementById('loaderContainer');
 
-    // Disable both buttons and show progress UI
+    // Disable both buttons and show loader
     button.disabled = true;
     followersButton.disabled = true;
     saveButton.style.display = 'none';
     collectedBookmarks = [];
     status.textContent = 'Starting export...';
-    progress.style.display = 'block';
-    progress.value = 0;
+    loader.style.display = 'flex';
 
     // Inject the content script into the active tab using Chrome's scripting API
     try {
@@ -145,7 +144,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     }
 
     const status = document.getElementById('status');
-    const progress = document.getElementById('progress');
+    const loader = document.getElementById('loaderContainer');
     const button = document.getElementById('exportButton');
     const followersButton = document.getElementById('exportFollowersButton');
     const saveButton = document.getElementById('saveButton');
@@ -154,9 +153,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     // Handle progress updates from the content script
     if (message.type === 'progressUpdate') {
         status.textContent = message.message;
-        if (message.progress) {
-            progress.value = message.progress;
-        }
+        loader.style.display = 'flex';
         // For large datasets, retrieve from storage instead of message
         if (message.count > 0) {
             try {
@@ -180,10 +177,12 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             // Handle completion - show save button and update status
             if (collectedBookmarks.length > 0) {
                 status.textContent = `Export complete! Found ${collectedBookmarks.length} bookmarks. Click 'Save Bookmarks Now' to download.`;
+                loader.style.display = 'none';
                 saveButton.style.display = 'block';
                 clearButton.style.display = 'block';
             } else {
                 status.textContent = 'No bookmarks found. Try refreshing the page.';
+                loader.style.display = 'none';
                 button.disabled = false;
                 followersButton.disabled = false;
                 saveButton.style.display = 'none';
@@ -191,6 +190,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             }
         } catch (err) {
             status.textContent = 'Error retrieving bookmarks: ' + err.message;
+            loader.style.display = 'none';
             button.disabled = false;
             followersButton.disabled = false;
         }
